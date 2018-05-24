@@ -1,0 +1,1 @@
+Dohsend is an ethereum smart contract that provides a two step payment mechanism that requires a payment to be claimed by the receiving address. A transaction can also be reclaimed by the sender if the receiving address is incorrect, we all make mistakes sometimes,
