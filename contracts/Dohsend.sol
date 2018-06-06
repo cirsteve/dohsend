@@ -1,31 +1,31 @@
 pragma solidity ^0.4.24;
 
 contract Dohsend {
-    struct transaction {
-        address _creator;
-        address _receiver;
-        uint _amt;
-        uint32 _id;
-        bool _isActive;
+    struct Transaction {
+        address creator;
+        address receiver;
+        uint amt;
+        uint32 id;
     }
 
     event TransactionCreated(
-        uint _id
+        uint32 id,
+        uint amt
     );
 
     event TransactionClaimed(
-        uint _id
+        uint id
     );
 
     event TransactionReclaimed(
-        uint _id
+        uint id
     );
 
     uint32 counter = 0;
 
     mapping (address => uint32[]) transactionsByCreator;
     mapping (address => uint32[]) transactionsByReceiver;
-    mapping (uint32 => transaction) transactionById;
+    mapping (uint => Transaction) transactions;
 
     function() public payable {}
 
@@ -33,50 +33,73 @@ contract Dohsend {
         require(msg.sender.balance >= msg.value);
         require(msg.value == _amt);
 
-        transaction memory trx = transaction(msg.sender, _receiver, msg.value, counter, true);
+        Transaction memory trx = Transaction(msg.sender, _receiver, msg.value, counter);
 
         transactionsByCreator[msg.sender].push(counter);
         transactionsByReceiver[_receiver].push(counter);
-        transactionById[counter] = trx;
+        transactions[counter] = trx;
         counter += 1;
 
-        emit TransactionCreated(trx._id);
+        emit TransactionCreated(trx.id, _amt);
+    }
+
+    function donate() public payable {
+        require(msg.sender.balance >= msg.value);
     }
 
     //used if the designated trx receipient is claiming the funds
     function claimTransaction(uint32 _id) public {
-        transaction storage trx = transactionById[_id];
-        require(msg.sender == trx._receiver);
-        require(trx._isActive);
-        trx._isActive = false;
-        msg.sender.transfer(trx._amt);
-        emit TransactionClaimed(trx._id);
+        Transaction storage trx = transactions[_id];
+        require(msg.sender == trx.receiver);
+        uint trxAmt = trx.amt;
+        require(trx.amt > 0);
+        trx.amt = 0;
+        emit TransactionClaimed(trx.id);
+        msg.sender.transfer(trxAmt);
+
     }
 
     //used if the trx creator is claiming the funds
     function reclaimTransaction(uint32 _id) public {
-        transaction storage trx = transactionById[_id];
-        require(msg.sender == trx._creator);
-        require(trx._isActive);
-        trx._isActive = false;
+        Transaction storage trx = transactions[_id];
+        require(msg.sender == trx.creator);
+        uint trxAmt = trx.amt;
+        require(trx.amt > 0);
+        trx.amt = 0;
+        emit TransactionReclaimed(trx.id);
+        msg.sender.transfer(trxAmt);
 
-        msg.sender.transfer(trx._amt);
-
-        emit TransactionReclaimed(trx._id);
     }
 
-    function getCreatorTransactions(address _addy) public view returns (uint32[]) {
-        uint32[] memory trxIds = transactionsByCreator[_addy];
-        return trxIds;
+    function getTransactions(uint32[] ids) internal returns (address[], address[], uint[]) {
+        address[] memory creator = new address[](ids.length);
+        address[] memory receiver = new address[](ids.length);
+        uint[] memory amt = new uint[](ids.length);
+        for (uint i=0; i<ids.length; i++) {
+            Transaction trx = transactions[ids[i]];
+            creator[i] = trx.creator;
+            receiver[i] = trx.receiver;
+            amt[i] = trx.amt;
+        }
+
+        return (creator, receiver, amt);
     }
 
-    function getReceiverTransactions(address _addy) public view returns (uint32[]) {
-        uint32[] memory trxIds = transactionsByReceiver[_addy];
-        return trxIds;
+    function getCreatorTransactions(address _addy) public view returns (address[] creator, address[] receiver, uint[] amt) {
+        uint32[] memory ids = transactionsByCreator[_addy];
+        return getTransactions(ids);
     }
 
-    function getTransaction(uint32 _id) public view returns (address _creator, address _receiver, uint _amt, bool _isActive) {
-        transaction memory trx = transactionById[_id];
-        return (trx._creator, trx._receiver, trx._amt, trx._isActive);
+    function getReceiverTransactions(address _addy) public view returns (address[] creator, address[] receiver, uint[] amt) {
+        uint32[] memory ids = transactionsByReceiver[_addy];
+        return getTransactions(ids);
+    }
+
+    function getTransaction(uint32 _id) public view returns (address creator, address receiver, uint amt) {
+        Transaction memory trx = transactions[_id];
+        creator = trx.creator;
+        receiver = trx.receiver;
+        amt = trx.amt;
+        return (creator, receiver, amt);
     }
 }

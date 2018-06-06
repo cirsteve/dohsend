@@ -1,32 +1,50 @@
+import TruffleContract from 'truffle-contract';
 import { WEB3_PROVIDER, DEPLOYED_ADDRESS, ABI } from '../config'
 import { submitTrxPending, transactionCreated, requestTrxs, requestTrxsPending, trxsReceived } from '../actions/index'
+import DohsendArtifact from '../../../build/contracts/Dohsend.json'
 
-function getWeb3 () {
+function initWeb3 () {
     let _web3;
-    if(typeof web3 != 'undefined'){
+    if(false && typeof web3 != 'undefined'){
        console.log("Using web3 detected from external source like Metamask")
-       _web3 = new Web3(web3.currentProvider)
+       _web3 = web3.currentProvider;
     }else{
-       _web3 = new Web3(new Web3.providers.HttpProvider(WEB3_PROVIDER))
+        console.log(`Using web3 by setting HttpProvider: ${WEB3_PROVIDER}`)
+       _web3 = new Web3.providers.HttpProvider(WEB3_PROVIDER)
     }
 
-    const deployedContract = _web3.eth.contract(ABI)
-    //deployedContract._address = DEPLOYED_ADDRESS
+    return _web3;
+}
+
+function initContract(_web3) {
+    const Dohsend = TruffleContract(DohsendArtifact);
+    Dohsend.setProvider(_web3.currentProvider);
+    //Dohsend.network_id = 5777;
+    return Dohsend;
+}
+
+function initApp() {
+    let _web3 = initWeb3();
+    web3 = new Web3(_web3)
     return {
-        contractInstance: deployedContract.at(DEPLOYED_ADDRESS),
-        web3: _web3
+        web3Provider: _web3,
+        contracts: {
+            Dohsend: initContract(web3)
+        }
     };
 }
 
-const initialState = Object.assign({
+const initialState = {
     connectedAddr: null,
     formData: {
         recipientAddr: '',
         amount: 0
     },
-    pendingCreateTrx: false,
-    pendingRequestTrxs: false,
-    trxPending: false}, getWeb3());
+    trxsCreated: [],
+    trxsRecevied: [],
+    trxPending: false,
+    App: Object.assign({}, initApp())
+};
 
 function updateField(state, {field, value}) {
     const update = {formData: Object.assign({}, state.formData)};
@@ -40,20 +58,25 @@ function trxPending(state) {
     return Object.assign({}, state, {pendingCreateTrx: true})
 }
 
-function trxCreated(state) {
-    return function(dispatch) {
-        dispatch(requestTrxsPending());
-
-        return state.contractInstance.getCreatorTransactions(state.connectedAddr, {}, (err, result) => {
-            if (err) console.log(err);
-            console.log(result);
-            dispatch(trxsReceived(result));
-        })
-    }
+function addCreatorTrx(state, to, amt) {
+    const trxs = state.trxsCreated;
+    trxs.push({to, amt});
+    return Object.assign({}, state, {trxsCreated: trxs});
 }
 
-function handleTrxsReceived(state, trxs) {
-    return Object.assign({}, state, {trxs:trxs});
+function handleTrxsReceived(state, trxType, trxs) {
+    const typeKey = trxType === 'creator' ?
+        'trxsCreated' : 'trxsReceived';
+    const update = {};
+    let creators, receivers, amts;
+    [creators, receivers, amts] = [...trxs];
+    update[typeKey] = creators.map((t, i) => {
+        return {
+            from: creators[i],
+            to: receivers[i],
+            amt: parseInt(amts[i], 10)}
+        });
+    return Object.assign({}, state, update);
 };
 
 export default function (state = initialState, action) {
@@ -64,36 +87,15 @@ export default function (state = initialState, action) {
             return submitTrx(state, action);
         case 'SUBMIT_TRX_PENDING':
             return trxPending(state);
-        case 'TRX_CREATED':
-            return trxCreated()
+        case 'CREATOR_TRX':
+            return addCreatorTrx(state, action.to, action.amt);
         case 'TRX_PENDING':
             return trxPending();
         case 'REQUEST_TRXS':
             return requestTrxs(state);
-        case 'TRX_RECEIVED':
-            return handleTrxsReceived(state, action);
+        case 'TRXS_RECEIVED':
+            return handleTrxsReceived(state, action.subType, action.trxs);
         default:
             return state;
     }
 }
-
-/**
-const path = require('path');
-const fs = require('fs');
-const solc = require('solc');
-const Web3 = require('web3');
-
-const web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"));
-
-// Compile the source code
-let input = fs.readFileSync('./contracts/ProofOfExistence3.sol', 'utf8');
-let output = solc.compile(input, 1);
-
-let abi = JSON.parse(output.contracts[':ProofOfExistence3'].interface);
-let bytecode = output.contracts[':ProofOfExistence3'].bytecode;
-
-let gasEstimate = web3.eth.estimateGas({data: bytecode}).then(console.log);
-
-// Contract object
-let MyContract = web3.eth.contract(abi);
-*/
