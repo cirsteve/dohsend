@@ -41,7 +41,7 @@ const initialState = {
         amount: 0
     },
     trxsCreated: [],
-    trxsRecevied: [],
+    trxsReceived: [],
     trxPending: false,
     App: Object.assign({}, initApp())
 };
@@ -58,9 +58,9 @@ function trxPending(state) {
     return Object.assign({}, state, {pendingCreateTrx: true})
 }
 
-function addCreatorTrx(state, to, amt) {
+function addCreatorTrx(state, id, to, amt) {
     const trxs = state.trxsCreated;
-    trxs.push({to, amt});
+    trxs.push({id, to, amt});
     return Object.assign({}, state, {trxsCreated: trxs});
 }
 
@@ -68,10 +68,11 @@ function handleTrxsReceived(state, trxType, trxs) {
     const typeKey = trxType === 'creator' ?
         'trxsCreated' : 'trxsReceived';
     const update = {};
-    let creators, receivers, amts;
-    [creators, receivers, amts] = [...trxs];
+    let ids, creators, receivers, amts;
+    [ids, creators, receivers, amts] = [...trxs];
     update[typeKey] = creators.map((t, i) => {
         return {
+            id: ids[i],
             from: creators[i],
             to: receivers[i],
             amt: parseInt(amts[i], 10)}
@@ -88,7 +89,7 @@ export default function (state = initialState, action) {
         case 'SUBMIT_TRX_PENDING':
             return trxPending(state);
         case 'CREATOR_TRX':
-            return addCreatorTrx(state, action.to, action.amt);
+            return addCreatorTrx(state, action.id, action.to, action.amt);
         case 'TRX_PENDING':
             return trxPending();
         case 'REQUEST_TRXS':

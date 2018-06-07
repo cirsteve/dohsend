@@ -1,7 +1,7 @@
 import React from 'react'
 import { connect } from 'react-redux';
-import App from './app.jsx';
-import { updateField, submitTrx, TrxReceived, getTrxsForAddr } from '../actions/index';
+import Container from './app.jsx';
+import { updateField, submitTrx, TrxReceived, getTrxsForAddr, claimTrx } from '../actions/index';
 
 const stateToProps = (state) => {
     console.log('fdgfdgd: ', state);
@@ -20,14 +20,15 @@ const stateToProps = (state) => {
 }
 
 const dispatchToProps = (dispatch) => {
-    return { actions: {
+    return {
         updateField: (field, value) => dispatch(updateField(field, value)),
         submitTrx: (app, to, amt, account) => dispatch(submitTrx(app, to, amt, account)),
-        getTrxsForAddr: (app, addr) => dispatch(getTrxsForAddr(app, addr))
-    }};
+        getTrxsForAddr: (app, addr) => dispatch(getTrxsForAddr(app, addr)),
+        claimTrx: (app, id, account) => dispatch(claimTrx(app, id, account))
+    };
 }
 
 export default connect(
     stateToProps,
     dispatchToProps
-)(App);
+)(Container);

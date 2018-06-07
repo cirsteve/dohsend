@@ -14,11 +14,8 @@ contract Dohsend {
     );
 
     event TransactionClaimed(
-        uint id
-    );
-
-    event TransactionReclaimed(
-        uint id
+        uint id,
+        address claimedBy
     );
 
     uint32 counter = 0;
@@ -47,28 +44,16 @@ contract Dohsend {
         require(msg.sender.balance >= msg.value);
     }
 
-    //used if the designated trx receipient is claiming the funds
-    function claimTransaction(uint32 _id) public {
-        Transaction storage trx = transactions[_id];
-        require(msg.sender == trx.receiver);
-        uint trxAmt = trx.amt;
-        require(trx.amt > 0);
-        trx.amt = 0;
-        emit TransactionClaimed(trx.id);
-        msg.sender.transfer(trxAmt);
-
-    }
-
     //used if the trx creator is claiming the funds
-    function reclaimTransaction(uint32 _id) public {
+    function claimTransaction(uint32 _id) public returns (bool) {
         Transaction storage trx = transactions[_id];
-        require(msg.sender == trx.creator);
+        require(msg.sender == trx.creator || msg.sender == trx.receiver);
         uint trxAmt = trx.amt;
-        require(trx.amt > 0);
+        require(trxAmt > 0);
         trx.amt = 0;
-        emit TransactionReclaimed(trx.id);
+        emit TransactionClaimed(trx.id, msg.sender);
         msg.sender.transfer(trxAmt);
-
+        return true;
     }
 
     function getTransactions(uint32[] ids) internal returns (address[], address[], uint[]) {
@@ -85,14 +70,16 @@ contract Dohsend {
         return (creator, receiver, amt);
     }
 
-    function getCreatorTransactions(address _addy) public view returns (address[] creator, address[] receiver, uint[] amt) {
-        uint32[] memory ids = transactionsByCreator[_addy];
-        return getTransactions(ids);
+    function getCreatorTransactions(address _addy) public view returns (uint32[] ids, address[] creator, address[] receiver, uint[] amt) {
+        ids = transactionsByCreator[_addy];
+        (creator, receiver, amt) = getTransactions(ids);
+        return (ids, creator, receiver, amt);
     }
 
-    function getReceiverTransactions(address _addy) public view returns (address[] creator, address[] receiver, uint[] amt) {
-        uint32[] memory ids = transactionsByReceiver[_addy];
-        return getTransactions(ids);
+    function getReceiverTransactions(address _addy) public view returns (uint32[] ids, address[] creator, address[] receiver, uint[] amt) {
+        ids = transactionsByReceiver[_addy];
+        (creator, receiver, amt) = getTransactions(ids);
+        return (ids, creator, receiver, amt);
     }
 
     function getTransaction(uint32 _id) public view returns (address creator, address receiver, uint amt) {

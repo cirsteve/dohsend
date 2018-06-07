@@ -109,3 +109,18 @@ function trxsReceived(subType, trxs) {
         trxs
     }
 }
+
+export function claimTrx(app, acct, id) {
+    return (dispatch) => {
+        return app.contracts.Dohsend.deployed().then(instance => {
+            return instance.claimTransaction(id, {
+                gas: 1000000,
+                gasPrice: 10000,
+                from: acct
+            }).then(result => {
+                console.log('trx claimed: ', result);
+                dispatch(getTrxsForAddr(app, acct));
+            }).catch(err => console.log(`claim trx Errorer:${err.message}`));
+        })
+    }
+}
