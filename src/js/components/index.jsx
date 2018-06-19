@@ -1,21 +1,25 @@
 import React from 'react'
 import { connect } from 'react-redux';
 import Container from './app.jsx';
-import { updateField, submitTrx, TrxReceived, getTrxsForAddr, claimTrx } from '../actions/index';
+import { updateField, submitTrx, TrxReceived, getTrxsForAddr, claimTrx, toggleShowActive } from '../actions/index';
+
+const getActiveTrxs = (trxs) => trxs.filter(t=>t.amt != 0)
 
 const stateToProps = (state) => {
-    console.log('fdgfdgd: ', state);
     const connectedAddr = web3.eth.accounts[0];
 
     return {
         formData: { ...state.formData },
         pendingTrxs: state.pendingTrxs,
         pendingTrx: state.pendingTrx,
-        trxsCreated: state.trxsCreated,
-        trxsReceived: state.trxsReceived,
+        trxsCreated: state.showActive.created ?
+            getActiveTrxs(state.trxs.created) : state.trxs.created,
+        trxsReceived: state.showActive.received ?
+            getActiveTrxs(state.trxs.received) : state.trxs.received,
         app: state.App,
         connectedAddr,
-        addrBalance: web3.fromWei(parseInt(web3.eth.getBalance(connectedAddr), 10))
+        addrBalance: web3.fromWei(state.addrBalance),
+        showActive: state.showActive
     };
 }
 
@@ -24,7 +28,8 @@ const dispatchToProps = (dispatch) => {
         updateField: (field, value) => dispatch(updateField(field, value)),
         submitTrx: (app, to, amt, account) => dispatch(submitTrx(app, to, amt, account)),
         getTrxsForAddr: (app, addr) => dispatch(getTrxsForAddr(app, addr)),
-        claimTrx: (app, id, account) => dispatch(claimTrx(app, id, account))
+        claimTrx: (app, id, account) => dispatch(claimTrx(app, id, account)),
+        toggleActive: (trxType) => dispatch(toggleShowActive(trxType))
     };
 }
 

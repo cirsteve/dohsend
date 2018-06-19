@@ -36,13 +36,20 @@ function initApp() {
 
 const initialState = {
     connectedAddr: null,
+    addrBalance: 0,
     formData: {
         recipientAddr: '',
         amount: 0
     },
-    trxsCreated: [],
-    trxsReceived: [],
-    trxPending: false,
+    trxs: {
+        created: [],
+        received: []
+    },
+    showActive: {
+        created: false,
+        received: false
+    },
+    activeCreated: false,
     App: Object.assign({}, initApp())
 };
 
@@ -59,26 +66,30 @@ function trxPending(state) {
 }
 
 function addCreatorTrx(state, id, to, amt) {
-    const trxs = state.trxsCreated;
-    trxs.push({id, to, amt});
-    return Object.assign({}, state, {trxsCreated: trxs});
+    const update = state.trxs;
+    update.created.push({id, to, amt});
+    return Object.assign({}, state, {trxs:update});
 }
 
 function handleTrxsReceived(state, trxType, trxs) {
-    const typeKey = trxType === 'creator' ?
-        'trxsCreated' : 'trxsReceived';
-    const update = {};
+    const update = state.trxs;
     let ids, creators, receivers, amts;
     [ids, creators, receivers, amts] = [...trxs];
-    update[typeKey] = creators.map((t, i) => {
+    update[trxType] = creators.map((t, i) => {
         return {
             id: ids[i],
             from: creators[i],
             to: receivers[i],
             amt: parseInt(amts[i], 10)}
         });
-    return Object.assign({}, state, update);
+    return Object.assign({}, state, {trxs: update});
 };
+
+function toggleActive(state, trxType) {
+    const update = Object.assign({}, state.showActive);
+    update[trxType] = !state.showActive[trxType];
+    return Object.assign({}, state, {showActive:update});
+}
 
 export default function (state = initialState, action) {
     switch(action.type) {
@@ -96,6 +107,8 @@ export default function (state = initialState, action) {
             return requestTrxs(state);
         case 'TRXS_RECEIVED':
             return handleTrxsReceived(state, action.subType, action.trxs);
+        case 'TOGGLE_SHOW_ACTIVE':
+            return toggleActive(state, action.trxType);
         default:
             return state;
     }

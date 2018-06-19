@@ -30,7 +30,7 @@ function fetchCreatorTrxs(app, addr) {
         return app.contracts.Dohsend.deployed().then(instance => {
             return instance.getCreatorTransactions.call(addr).then(result => {
                 console.log('received creator trxs: ', result);
-                dispatch(trxsReceived('creator', result));
+                dispatch(trxsReceived('created', result));
             });
         })
     };
@@ -41,7 +41,7 @@ function fetchReceiverTrxs(app, addr) {
         return app.contracts.Dohsend.deployed().then(instance => {
             return instance.getReceiverTransactions.call(addr).then(result => {
                 console.log('received receiver trxs: ', result);
-                dispatch(trxsReceived('receiver', result));
+                dispatch(trxsReceived('received', result));
             });
         })
     };
@@ -49,6 +49,7 @@ function fetchReceiverTrxs(app, addr) {
 
 
 export function getTrxsForAddr(app, addr) {
+    console.log('getting trxs for addr: ', addr)
     return dispatch => {
         dispatch(fetchCreatorTrxs(app, addr));
         dispatch(fetchReceiverTrxs(app, addr));
@@ -122,5 +123,12 @@ export function claimTrx(app, acct, id) {
                 dispatch(getTrxsForAddr(app, acct));
             }).catch(err => console.log(`claim trx Errorer:${err.message}`));
         })
+    }
+}
+
+export function toggleShowActive(trxType) {
+    return {
+        type: 'TOGGLE_SHOW_ACTIVE',
+        trxType
     }
 }

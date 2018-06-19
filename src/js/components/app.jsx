@@ -1,41 +1,11 @@
 import React, { Component } from 'react';
-import TextField from '@material-ui/core/TextField';
+import TrxList, {createdTrxItem, receivedTrxItem} from './TrxList.jsx';
 
 const inputHandler = (cb, e) => cb(e.currentTarget.value);
 
 const form = (fields, handler) => Object.keys(fields).map(
     k => <div key={k}><label>{k}</label><input type="text" value={fields[k]} onChange={inputHandler.bind(this, handler.bind(this, k))} /></div>
     );
-
-const createdTrxItem = (app, acct, handler, {to, amt, id}, i) => (
-    <div key={i} className="trx">
-        <div>Sent to: {to}</div>
-        <div>Amount: {amt}</div>
-        <input type="button" onClick={handler.bind(this, app, acct, id)} value="Claim"/>
-    </div>
-)
-
-const receivedTrxItem = (app, acct, handler, {from, amt, id}, i) => (
-    <div key={i} className="trx">
-        <div>Created by: {from}</div>
-        <div>Amount: {amt}</div>
-        <input type="button" onClick={handler.bind(this, app, acct, id)} value="Claim"/>
-    </div>
-)
-
-const existingTrxs = (created, received, handler, app, acct) => {
-    return (
-    <div>
-        <h3>Transactions Created</h3>
-        <div>
-            { created.length ? created.map(createdTrxItem.bind(this, app, acct, handler)) : '-'}
-        </div>
-        <h3>Transactions Received</h3>
-        <div>
-            { received.length ? received.map(receivedTrxItem.bind(this, app, acct, handler)) : '-'}
-        </div>
-    </div>);
-}
 
 const appComp = ({ ...props, ...handlers }) => (
       <div className="main-container">
@@ -57,7 +27,26 @@ const appComp = ({ ...props, ...handlers }) => (
                 props.formData.recipientAddr,
                 props.formData.amount,
                 props.connectedAddr)} />
-        { existingTrxs(props.trxsCreated, props.trxsReceived, handlers.claimTrx, props.app, props.connectedAddr)}
+        <div className="existing-trxs">
+            <div>
+                <h4>Created Transactions</h4>
+                {TrxList(
+                    props.trxsCreated,
+                    handlers.claimTrx.bind(this, props.app, props.connectedAddr),
+                    props.showActive.created,
+                    handlers.toggleActive.bind(this, 'created'),
+                    createdTrxItem)}
+            </div>
+            <div>
+                <h4>Received Transactions</h4>
+                {TrxList(
+                    props.trxsReceived,
+                    handlers.claimTrx.bind(this, props.app, props.connectedAddr),
+                    props.showActive.received,
+                    handlers.toggleActive.bind(this, 'received'),
+                    receivedTrxItem)}
+            </div>
+        </div>
      </div>)
 
 class Container extends Component {
