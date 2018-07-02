@@ -1,92 +1,94 @@
 pragma solidity ^0.4.24;
 
 contract Dohsend {
-    struct Transaction {
-        address creator;
-        address receiver;
-        uint amt;
-        uint32 id;
+    uint balanceCount = 1;
+
+    struct Balance {
+        address[2] addresses;
+        uint amount;
     }
 
-    event TransactionCreated(
-        uint32 id,
+    event BalanceSent(
+        address sender,
+        address indexed receiver,
         uint amt
     );
 
-    event TransactionClaimed(
-        uint id,
-        address claimedBy
+    event BalanceClaimed(
+        address claimedBy,
+        address indexed complement,
+        uint amt
     );
 
-    uint32 counter = 0;
+    mapping (address => uint[]) addresses;
 
-    mapping (address => uint32[]) transactionsByCreator;
-    mapping (address => uint32[]) transactionsByReceiver;
-    mapping (uint => Transaction) transactions;
+    //list of addresses that have an active balance with the key address
+    mapping (uint => Balance) balances;
 
     function() public payable {}
 
-    function createTransaction(address _receiver, uint _amt) public payable {
-        require(msg.sender.balance >= msg.value);
-        require(msg.value == _amt);
+    function getComplement(address[2] addrs, address sender) pure public returns (address to) {
+        if (keccak256(sender) == keccak256(addrs[0])) {
+            to = addrs[1];
+        }
 
-        Transaction memory trx = Transaction(msg.sender, _receiver, msg.value, counter);
+        if (keccak256(sender) == keccak256(addrs[1])) {
+            to = addrs[0];
+        }
 
-        transactionsByCreator[msg.sender].push(counter);
-        transactionsByReceiver[_receiver].push(counter);
-        transactions[counter] = trx;
-        counter += 1;
-
-        emit TransactionCreated(trx.id, _amt);
+        if (keccak256(to) == keccak256(0x0)) {
+            revert();
+        }
     }
 
-    function donate() public payable {
+    function createBalance(address _to) public payable returns (bool) {
         require(msg.sender.balance >= msg.value);
-    }
-
-    //used if the trx creator is claiming the funds
-    function claimTransaction(uint32 _id) public returns (bool) {
-        Transaction storage trx = transactions[_id];
-        require(msg.sender == trx.creator || msg.sender == trx.receiver);
-        uint trxAmt = trx.amt;
-        require(trxAmt > 0);
-        trx.amt = 0;
-        emit TransactionClaimed(trx.id, msg.sender);
-        msg.sender.transfer(trxAmt);
+        address[2] memory accounts;
+        accounts[0] = msg.sender;
+        accounts[1] = _to;
+        balances[balanceCount] = Balance(accounts, msg.value);
+        addresses[msg.sender].push(balanceCount);
+        addresses[_to].push(balanceCount);
+        balanceCount += 1;
+        emit BalanceSent(msg.sender, _to, msg.value);
         return true;
     }
 
-    function getTransactions(uint32[] ids) internal returns (address[], address[], uint[]) {
-        address[] memory creator = new address[](ids.length);
-        address[] memory receiver = new address[](ids.length);
-        uint[] memory amt = new uint[](ids.length);
-        for (uint i=0; i<ids.length; i++) {
-            Transaction trx = transactions[ids[i]];
-            creator[i] = trx.creator;
-            receiver[i] = trx.receiver;
-            amt[i] = trx.amt;
+    function addToBalance(uint _id) public payable {
+        require(msg.sender.balance >= msg.value);
+        Balance storage balance = balances[_id];
+
+        //ensure that one of the address matches the sender
+        address to = getComplement(balance.addresses, msg.sender);
+        balances[_id].amount += msg.value;
+        emit BalanceSent(msg.sender, to, msg.value);
+    }
+
+    function claimBalance(uint _id) public {
+        Balance storage balance = balances[_id];
+        require(msg.sender == balance.addresses[0] || msg.sender == balance.addresses[1]);
+        uint amount = balance.amount;
+        balance.amount = 0;
+        msg.sender.transfer(amount);
+        emit BalanceClaimed(msg.sender, getComplement(balance.addresses, msg.sender), amount);
+    }
+
+    function getBalance(uint _id) public view returns (address, address, uint) {
+        Balance memory balance = balances[_id];
+        return (balance.addresses[0], balance.addresses[1], balance.amount);
+    }
+
+    function getBalances(address _addr) public view returns ( uint[], uint[], address[]) {
+        uint[] memory ids = addresses[_addr];
+        uint[] memory amts = new uint[](ids.length);
+        address[] memory addrs = new address[](ids.length);
+        for (uint i=0; i<ids.length;i++) {
+            Balance memory bal = balances[ids[i]];
+            addrs[i] = getComplement(bal.addresses, msg.sender);
+            amts[i] = bal.amount;
         }
 
-        return (creator, receiver, amt);
+        return (ids, amts, addrs);
     }
 
-    function getCreatorTransactions(address _addy) public view returns (uint32[] ids, address[] creator, address[] receiver, uint[] amt) {
-        ids = transactionsByCreator[_addy];
-        (creator, receiver, amt) = getTransactions(ids);
-        return (ids, creator, receiver, amt);
-    }
-
-    function getReceiverTransactions(address _addy) public view returns (uint32[] ids, address[] creator, address[] receiver, uint[] amt) {
-        ids = transactionsByReceiver[_addy];
-        (creator, receiver, amt) = getTransactions(ids);
-        return (ids, creator, receiver, amt);
-    }
-
-    function getTransaction(uint32 _id) public view returns (address creator, address receiver, uint amt) {
-        Transaction memory trx = transactions[_id];
-        creator = trx.creator;
-        receiver = trx.receiver;
-        amt = trx.amt;
-        return (creator, receiver, amt);
-    }
 }
