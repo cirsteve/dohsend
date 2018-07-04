@@ -2,10 +2,11 @@ import TruffleContract from 'truffle-contract';
 import { WEB3_PROVIDER, DEPLOYED_ADDRESS, ABI } from '../config'
 import { submitTrxPending, transactionCreated, requestTrxs, requestTrxsPending, trxsReceived } from '../actions/index'
 import DohsendArtifact from '../../../build/contracts/Dohsend.json'
+//const Web3 = require('web3');
 
 function initWeb3 () {
     let _web3;
-    if(false && typeof web3 != 'undefined'){
+    if(typeof web3 != 'undefined'){
        console.log("Using web3 detected from external source like Metamask")
        _web3 = web3.currentProvider;
     }else{
@@ -25,7 +26,7 @@ function initContract(_web3) {
 
 function initApp() {
     let _web3 = initWeb3();
-    web3 = new Web3(_web3)
+    web3 = new Web3(_web3);
     return {
         web3Provider: _web3,
         contracts: {
@@ -35,21 +36,19 @@ function initApp() {
 }
 
 const initialState = {
+    loading: {
+        balances: false
+    },
+    trxPending: false,
     connectedAddr: null,
     addrBalance: 0,
     formData: {
         recipientAddr: '',
         amount: 0
     },
-    trxs: {
-        created: [],
-        received: []
-    },
-    showActive: {
-        created: false,
-        received: false
-    },
-    activeCreated: false,
+    balances: {},//balances saved onchain via the dapp
+    gasPrice: 0,
+    showActive: false,
     App: Object.assign({}, initApp())
 };
 
@@ -60,35 +59,31 @@ function updateField(state, {field, value}) {
 
 }
 
-function trxPending(state) {
+function loading(state, dataType, isLoading) {
+    console.log('trx pending: ', state);
+    const update = Object.assign({}, state.loading);
+    update[dataType] = isLoading;
+    return Object.assign({}, state, {loading: update})
+}
+
+function transactionPending(state, trxType, isPending) {
     console.log('trx pending: ', state);
     return Object.assign({}, state, {pendingCreateTrx: true})
 }
 
-function addCreatorTrx(state, id, to, amt) {
-    const update = state.trxs;
-    update.created.push({id, to, amt});
-    return Object.assign({}, state, {trxs:update});
+function balancesReceived(state, balances) {
+    return Object.assign({}, state, {balances});
 }
 
-function handleTrxsReceived(state, trxType, trxs) {
-    const update = state.trxs;
-    let ids, creators, receivers, amts;
-    [ids, creators, receivers, amts] = [...trxs];
-    update[trxType] = creators.map((t, i) => {
-        return {
-            id: ids[i],
-            from: creators[i],
-            to: receivers[i],
-            amt: parseInt(amts[i], 10)}
-        });
-    return Object.assign({}, state, {trxs: update});
-};
+function balanceReceived(state, balance) {
+    const balances = Object.assign({}, state.balances);
+    balances[balance.id] = balance;
+    return Object.assign({}, state, { balances });
+}
 
 function toggleActive(state, trxType) {
-    const update = Object.assign({}, state.showActive);
-    update[trxType] = !state.showActive[trxType];
-    return Object.assign({}, state, {showActive:update});
+    const showActive = !state.showActive;
+    return Object.assign({}, state, {showActive});
 }
 
 export default function (state = initialState, action) {
@@ -97,16 +92,18 @@ export default function (state = initialState, action) {
             return updateField(state, action);
         case 'SUBMIT_TRX':
             return submitTrx(state, action);
-        case 'SUBMIT_TRX_PENDING':
-            return trxPending(state);
-        case 'CREATOR_TRX':
-            return addCreatorTrx(state, action.id, action.to, action.amt);
-        case 'TRX_PENDING':
-            return trxPending();
-        case 'REQUEST_TRXS':
-            return requestTrxs(state);
-        case 'TRXS_RECEIVED':
-            return handleTrxsReceived(state, action.subType, action.trxs);
+        case 'LOADING':
+            return loading(state, action.dataType, action.isLoading);
+        case 'TRANSACTION_PENDING':
+            return transactionPending(state, action.transactionType, action.isPending);
+        case 'BALANCES_RECEIVED':
+            return balancesReceived(state, action.balances);
+        case 'BALANCE_RECEIVED':
+            return balanceReceived(state, action.balance);
+        case 'ACCT_BALANCE_RECEIVED':
+            return Object.assign({}, state, {addrBalance: action.balance});
+        case 'GAS_PRICE_RECEIVED':
+            return Object.assign({}, state, {gasPrice: action.price});
         case 'TOGGLE_SHOW_ACTIVE':
             return toggleActive(state, action.trxType);
         default:

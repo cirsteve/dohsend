@@ -1,25 +1,60 @@
 import React, { Component } from 'react';
 
 
-export const createdTrxItem = (handler, {to, amt, id}, i) => (
-    <div key={i} className="trx">
-        <div>Sent to: {to}</div>
-        <div>Amount: {amt}</div>
-        <input type="button" onClick={handler.bind(this, id)} value="Claim"/>
-    </div>
-)
+class TrxItem extends Component {
 
-export const receivedTrxItem = (handler, {from, amt, id}, i) => (
-    <div key={i} className="trx">
-        <div>Created by: {from}</div>
-        <div>Amount: {amt}</div>
-        <input type="button" onClick={handler.bind(this,  id)} value="Claim"/>
-    </div>
-)
+    constructor(props) {
+        super(props);
+        this.state = {showAddInput: false, addAmt: 0};
+    }
 
-const trxList = (trxs, claimTrx, comp) => (
+    render ()  {
+
+        const addInputStyle = {
+            display: this.state.showAddInput ? 'inline' : 'none'
+        };
+
+        return (
+            <div className="trx">
+                <div>Sent to: {this.props.balance.addr}</div>
+                <div>Amount: {this.props.balance.amt}</div>
+                <input type="button" disabled={this.props.balance.amt === 0 ? true : false} onClick={this.props.claimHandler.bind(this, this.props.balance.id)} value="Claim"/>
+                <input type="button" onClick={this.toggleAddInput.bind(this)} value="Increase"/>
+                <div style={addInputStyle}>
+                    <input type="text" value={this.state.addAmt} onChange={this.updateAmount.bind(this)} />
+                    <input type="button" onClick={this.handleSubmit.bind(this)} value="Send Increase"/>
+                </div>
+            </div>)
+    }
+
+    toggleAddInput () {
+        this.setState(Object.assign({}, this.state, {showAddInput: !this.state.showAddInput}))
+    }
+
+    updateAmount (e) {
+        this.setState(Object.assign({}, this.state, {addAmt: e.target.value}));
+    }
+
+    handleSubmit () {
+        this.props.addHandler(this.props.balance.id, parseInt(this.state.addAmt))
+        this.setState({showAddInput: false, addAmt: 0});
+    }
+
+}
+
+TrxItem.defaultProps = {
+    id: null,
+    amt: 0,
+    addr: null,
+    addAmt: 0,
+    claimHandler: null,
+    addHandler: null,
+    showAddInput: false
+}
+
+const trxList = (bals, claimBal, addBal) => (
     <div className="trx-list">
-        { trxs.map(comp.bind(this, claimTrx)) }
+        { bals.map(b => <TrxItem key={b.id} balance={b} claimHandler={claimBal} addHandler={addBal} />) }
     </div>
 )
 
@@ -31,11 +66,11 @@ const listHeader = (showActive, toggleActive) => (
     </div>
 )
 
-const trxsComp = (trxs, claimTrx, showActive, toggleActive, comp) => (
+const trxsComp = (trxs, claimBal, addBal, showActive, toggleActive, comp) => (
     <div className="trxs">
         {listHeader(showActive, toggleActive)}
         {trxs.length ?
-            trxList(trxs, claimTrx, comp) : '-'}
+            trxList(trxs, claimBal, addBal) : '-'}
     </div>
 )
 

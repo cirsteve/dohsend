@@ -11,13 +11,15 @@ contract Dohsend {
     event BalanceSent(
         address sender,
         address indexed receiver,
-        uint amt
+        uint amt,
+        uint id
     );
 
     event BalanceClaimed(
         address claimedBy,
         address indexed complement,
-        uint amt
+        uint amt,
+        uint id
     );
 
     mapping (address => uint[]) addresses;
@@ -28,15 +30,16 @@ contract Dohsend {
     function() public payable {}
 
     function getComplement(address[2] addrs, address sender) pure public returns (address to) {
-        if (keccak256(sender) == keccak256(addrs[0])) {
+        if (keccak256(abi.encodePacked(sender)) == keccak256(abi.encodePacked(addrs[0]))) {
             to = addrs[1];
         }
 
-        if (keccak256(sender) == keccak256(addrs[1])) {
+        if (keccak256(abi.encodePacked(sender)) == keccak256(abi.encodePacked(addrs[1]))) {
             to = addrs[0];
         }
 
-        if (keccak256(to) == keccak256(0x0)) {
+        address baseAddr = 0x0;
+        if (keccak256(abi.encodePacked(to)) == keccak256(abi.encodePacked(baseAddr))) {
             revert();
         }
     }
@@ -49,8 +52,8 @@ contract Dohsend {
         balances[balanceCount] = Balance(accounts, msg.value);
         addresses[msg.sender].push(balanceCount);
         addresses[_to].push(balanceCount);
+        emit BalanceSent(msg.sender, _to, msg.value, balanceCount);
         balanceCount += 1;
-        emit BalanceSent(msg.sender, _to, msg.value);
         return true;
     }
 
@@ -61,7 +64,7 @@ contract Dohsend {
         //ensure that one of the address matches the sender
         address to = getComplement(balance.addresses, msg.sender);
         balances[_id].amount += msg.value;
-        emit BalanceSent(msg.sender, to, msg.value);
+        emit BalanceSent(msg.sender, to, msg.value, _id);
     }
 
     function claimBalance(uint _id) public {
@@ -70,7 +73,7 @@ contract Dohsend {
         uint amount = balance.amount;
         balance.amount = 0;
         msg.sender.transfer(amount);
-        emit BalanceClaimed(msg.sender, getComplement(balance.addresses, msg.sender), amount);
+        emit BalanceClaimed(msg.sender, getComplement(balance.addresses, msg.sender), amount, _id);
     }
 
     function getBalance(uint _id) public view returns (address, address, uint) {

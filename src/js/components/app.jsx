@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import TrxList, {createdTrxItem, receivedTrxItem} from './TrxList.jsx';
+import TrxList from './TrxList.jsx';
 
 const inputHandler = (cb, e) => cb(e.currentTarget.value);
 
@@ -21,37 +21,30 @@ const appComp = ({ ...props, ...handlers }) => (
             </div>
          </div>
          <input type="button"
-            value="Create Transaction"
-            onClick={handlers.submitTrx.bind(this,
+            value="Create Balance"
+            onClick={handlers.submitCreateBalance.bind(this,
                 props.app,
+                props.connectedAddr,
                 props.formData.recipientAddr,
-                props.formData.amount,
-                props.connectedAddr)} />
+                props.formData.amount)} />
         <div className="existing-trxs">
             <div>
-                <h4>Created Transactions</h4>
+                <h4>Balances</h4>
                 {TrxList(
-                    props.trxsCreated,
-                    handlers.claimTrx.bind(this, props.app, props.connectedAddr),
-                    props.showActive.created,
-                    handlers.toggleActive.bind(this, 'created'),
-                    createdTrxItem)}
-            </div>
-            <div>
-                <h4>Received Transactions</h4>
-                {TrxList(
-                    props.trxsReceived,
-                    handlers.claimTrx.bind(this, props.app, props.connectedAddr),
-                    props.showActive.received,
-                    handlers.toggleActive.bind(this, 'received'),
-                    receivedTrxItem)}
+                    props.balances,
+                    handlers.submitClaimBalance.bind(this, props.app, props.connectedAddr),
+                    handlers.submitAddToBalance.bind(this, props.app, props.connectedAddr, props.gasPrice),
+                    props.showActive,
+                    handlers.toggleActive.bind(this))}
             </div>
         </div>
      </div>)
 
 class Container extends Component {
     componentWillMount () {
-        this.props.getTrxsForAddr(this.props.app, this.props.connectedAddr)
+        this.props.getBalancesForAddr(this.props.app, this.props.connectedAddr);
+        this.props.getAcctBalance(this.props.connectedAddr);
+        this.props.getGasPrice();
     }
 
     render () {
