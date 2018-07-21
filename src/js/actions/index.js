@@ -55,6 +55,7 @@ function handleBalancesResponse(response) {
 }
 
 function fetchBalances(app, addr) {
+    console.log('fetching balances for ', addr);
     return (dispatch, getState) => {
         return app.contracts.Dohsend.deployed().then(instance => {
             return instance.getBalances.call(addr).then(result => {
@@ -66,7 +67,6 @@ function fetchBalances(app, addr) {
 };
 
 export function getBalancesForAddr(app, addr) {
-    console.log('getting trxs for addr: ', addr)
     return dispatch => {
         dispatch(loading('balances', true))
         dispatch(fetchBalances(app, addr));
@@ -94,8 +94,8 @@ export function createBalance(app, acct, addr, amt) {
     return (dispatch) => {
         return app.contracts.Dohsend.deployed().then(instance => {
             return instance.createBalance(addr, {
-                //gas: 1000000,
-                //gasPrice: 10000,
+                gas: 1000000,
+                gasPrice: 10000,
                 from: acct,
                 value: amt
             }).then(result => {
@@ -127,12 +127,12 @@ export function addToBalance(app, acct, gasPrice, id, amt) {
     };
 }
 
-export function claimBalance(app, id, acct) {
+export function claimBalance(app, acct, id) {
     return (dispatch) => {
         return app.contracts.Dohsend.deployed().then(instance => {
             return instance.claimBalance(id, {
-                gas: 1000000,
-                gasPrice: 10000,
+                //gas: 1000000,
+                //gasPrice: 10000,
                 from: acct
             }).then(result => {
                 console.log('bal claimed: ', result);
@@ -144,6 +144,7 @@ export function claimBalance(app, id, acct) {
 }
 
 function accountBalanceReceived(addr, balance) {
+    console.log('got acct bal: ', balance);
     return {
         type: 'ACCT_BALANCE_RECEIVED',
         addr,
@@ -154,7 +155,8 @@ function accountBalanceReceived(addr, balance) {
 //get the balance of the account connected to the client
 export function getAcctBalance(addr) {
     return (dispatch) => {
-        console.log('getting acct balance');
+        console.log('getting acct balance for ', addr);
+        if (!addr) return;
         return web3.eth.getBalance(addr, (err, balance) => {
             if (err) {
                 console.log('err:', err)
@@ -177,4 +179,13 @@ export function getGasPrice() {
     return (dispatch) => {
         return web3.eth.getGasPrice(function(_, price) { dispatch(gasPriceReceived(parseInt(price, 10)))});
     };
+}
+
+export function getEventsForAddr(app, addr) {
+    return (dispatch) => {
+        app.contracts.Dohsend.BalanceSent({sender: addr}, {fromBlock: 0, toBlock: 'latest'}).get((err, res) => {
+            if (err) console.log('BalanceSent: ', err);
+            console.log('BalanceSent: ', res);
+        })
+    }
 }

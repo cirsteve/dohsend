@@ -6,7 +6,7 @@ import DohsendArtifact from '../../../build/contracts/Dohsend.json'
 
 function initWeb3 () {
     let _web3;
-    if(typeof web3 != 'undefined'){
+    if(false && typeof web3 != 'undefined'){
        console.log("Using web3 detected from external source like Metamask")
        _web3 = web3.currentProvider;
     }else{
@@ -49,6 +49,7 @@ const initialState = {
     balances: {},//balances saved onchain via the dapp
     gasPrice: 0,
     showActive: false,
+    logs: null,
     App: Object.assign({}, initApp())
 };
 
@@ -105,7 +106,9 @@ export default function (state = initialState, action) {
         case 'GAS_PRICE_RECEIVED':
             return Object.assign({}, state, {gasPrice: action.price});
         case 'TOGGLE_SHOW_ACTIVE':
-            return toggleActive(state, action.trxType);
+            return toggleActive({}, state, action.trxType);
+        case 'RECEIVE_LOGS':
+            return Object.assign({}, state, {logs: action.logs});
         default:
             return state;
     }

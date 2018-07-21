@@ -42,8 +42,10 @@ const appComp = ({ ...props, ...handlers }) => (
 
 class Container extends Component {
     componentWillMount () {
+        console.log('comp will mount ', this.props);
         this.props.getBalancesForAddr(this.props.app, this.props.connectedAddr);
         this.props.getAcctBalance(this.props.connectedAddr);
+        this.props.getEventsForAddr(this.props.app, this.props.connectedAddr);
         this.props.getGasPrice();
     }
 
